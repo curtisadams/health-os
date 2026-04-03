@@ -42,53 +42,57 @@ def get_headers():
     tokens = load_tokens()
     return {"Authorization": f"Bearer {tokens['access_token']}"}
 
-def get_recovery():
+def fetch(url):
+    """GET a WHOOP API URL, auto-refreshing on 401. Returns parsed JSON or raises on error."""
     headers = get_headers()
-    response = requests.get(f"{API_BASE}/recovery", headers=headers)
-    print(f"Recovery status code: {response.status_code}")
-    print(f"Recovery raw response: {response.text}")
+    response = requests.get(url, headers=headers)
     if response.status_code == 401:
         print("Token expired, refreshing...")
         tokens = load_tokens()
         new_tokens = refresh_access_token(tokens["refresh_token"])
         if new_tokens:
             headers = get_headers()
-            response = requests.get(f"{API_BASE}/recovery", headers=headers)
+            response = requests.get(url, headers=headers)
+        else:
+            raise RuntimeError("Token refresh failed.")
+    if not response.ok:
+        raise RuntimeError(f"Request to {url} failed [{response.status_code}]: {response.text}")
+    if not response.text.strip():
+        raise RuntimeError(f"Empty response from {url} [{response.status_code}]")
     return response.json()
+
+def get_recovery():
+    return fetch(f"{API_BASE}/recovery")
 
 def get_sleep():
-    headers = get_headers()
-    response = requests.get(f"{API_BASE}/activity/sleep", headers=headers)
-    if response.status_code == 401:
-        tokens = load_tokens()
-        new_tokens = refresh_access_token(tokens["refresh_token"])
-        if new_tokens:
-            headers = get_headers()
-            response = requests.get(f"{API_BASE}/activity/sleep", headers=headers)
-    return response.json()
+    return fetch(f"{API_BASE}/activity/sleep")
 
 def get_strain():
-    headers = get_headers()
-    response = requests.get(f"{API_BASE}/cycle", headers=headers)
-    if response.status_code == 401:
-        tokens = load_tokens()
-        new_tokens = refresh_access_token(tokens["refresh_token"])
-        if new_tokens:
-            headers = get_headers()
-            response = requests.get(f"{API_BASE}/cycle", headers=headers)
-    return response.json()
+    return fetch(f"{API_BASE}/cycle")
+
+DATA_FILE = "data/whoop_daily.json"
 
 if __name__ == "__main__":
     print("Fetching WHOOP data...\n")
 
-    print("--- RECOVERY ---")
     recovery = get_recovery()
-    print(json.dumps(recovery, indent=2))
-
-    print("\n--- SLEEP ---")
     sleep = get_sleep()
-    print(json.dumps(sleep, indent=2))
-
-    print("\n--- STRAIN ---")
     strain = get_strain()
-    print(json.dumps(strain, indent=2))
+
+    whoop_data = {
+        "recovery": recovery,
+        "sleep": sleep,
+        "strain": strain,
+    }
+
+    with open(DATA_FILE, "w") as f:
+        json.dump(whoop_data, f, indent=2)
+    print(f"Saved full WHOOP data to {DATA_FILE}\n")
+
+    print("=" * 60)
+    print("WHOOP DAILY DATA")
+    print("=" * 60)
+    for section, data in whoop_data.items():
+        print(f"\n--- {section.upper()} ---")
+        print(json.dumps(data, indent=2))
+    print("\n" + "=" * 60)
