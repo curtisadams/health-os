@@ -9,9 +9,15 @@ This is my first attempt at vibe coding — building something with AI tools end
 Most health apps keep your data siloed. This project connects them:
 
 - **WHOOP** — pulls recovery score, HRV, resting heart rate, SpO2, sleep stages, strain, and calories via the WHOOP v2 API
-- **Apple Health** — parses daily exports from the Health Auto Export app, capturing 30+ metrics including steps, active energy, heart rate, nutrition, and more
-- **Lose It** *(in progress)* — nutrition and calorie tracking data
-- **Daily summary** *(in progress)* — unified view across all sources for a given day
+- **Apple Health** — parses daily exports from the Health Auto Export app, capturing 30+ metrics including steps, active energy, heart rate, and more
+- **Lose It** — nutrition data (calories, macros, fiber, sodium, cholesterol) extracted from Apple Health where it syncs automatically
+- **Daily summary** — unified view across all sources printed to terminal and saved to JSON
+
+Run the whole pipeline with a single command:
+
+```bash
+python3 run.py
+```
 
 Each source writes to a clean JSON file in `data/` that can be consumed by downstream scripts, dashboards, or LLM-based health coaching tools.
 
@@ -19,16 +25,19 @@ Each source writes to a clean JSON file in `data/` that can be consumed by downs
 
 ```
 health-os/
+├── run.py                       # Single entrypoint — runs the full pipeline
 ├── scripts/
-│   ├── whoop.py           # Fetches and parses WHOOP recovery, sleep, and strain
-│   ├── apple_health.py    # Parses Apple Health daily export JSON
-│   ├── loseit.py          # Lose It nutrition data (in progress)
-│   └── summary.py         # Unified daily summary (in progress)
+│   ├── whoop.py                 # Fetches and parses WHOOP recovery, sleep, and strain
+│   ├── apple_health.py          # Parses Apple Health daily export JSON
+│   ├── loseit.py                # Extracts nutrition data from Apple Health
+│   └── summary.py               # Unified daily summary across all sources
 ├── data/
-│   ├── whoop_daily.json        # Raw WHOOP API responses (all fields)
-│   ├── whoop_summary.json      # Parsed WHOOP daily summary
-│   └── apple_health_daily.json # Parsed Apple Health metrics
-└── .env                   # API credentials and file paths (not committed)
+│   ├── whoop_daily.json         # Raw WHOOP API responses (all fields)
+│   ├── whoop_summary.json       # Parsed WHOOP daily summary
+│   ├── apple_health_daily.json  # Parsed Apple Health metrics (30+ fields)
+│   ├── loseit_daily.json        # Nutrition summary
+│   └── daily_summary.json       # Unified daily summary across all sources
+└── .env                         # API credentials and file paths (not committed)
 ```
 
 ## Data sources
@@ -64,4 +73,4 @@ health-os/
 
 ## Status
 
-Early stage — data collection and parsing is working for WHOOP and Apple Health. The next phase is building the unified daily summary and exploring how to surface insights from the combined data.
+The core pipeline is complete. All four scripts run end-to-end with `python3 run.py`. The next phase is doing something interesting with the data — trends over time, LLM-based daily coaching, or a simple dashboard.
