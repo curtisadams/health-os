@@ -10,6 +10,7 @@ function switchTab(name, btn) {
   tab.classList.add('active');
   if (btn) btn.classList.add('active');
   if (name === 'labs') loadLabsHistory();
+  if (name === 'profile') loadProfile();
 }
 
 // --- Dashboard ---
@@ -37,6 +38,21 @@ function set(id, val) {
   if (el) el.textContent = val;
 }
 
+// --- Offline support ---
+
+function updateOnlineStatus() {
+  const banner = document.getElementById('offline-banner');
+  if (!banner) return;
+  if (navigator.onLine) {
+    banner.classList.add('hidden');
+  } else {
+    banner.classList.remove('hidden');
+  }
+}
+
+window.addEventListener('online', () => { updateOnlineStatus(); loadDates(); });
+window.addEventListener('offline', updateOnlineStatus);
+
 // --- Morning Brief ---
 
 function loadBrief(refresh = false) {
@@ -57,6 +73,127 @@ function loadBrief(refresh = false) {
       card.classList.remove('hidden');
     })
     .catch(() => card.classList.add('hidden'));
+}
+
+// --- Trends & Charts ---
+
+let trendDays = 14;
+const activeCharts = {};
+
+function switchTrends(days, btn) {
+  trendDays = days;
+  document.querySelectorAll('.trend-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  loadTrends(days);
+}
+
+function loadTrends(days) {
+  days = days || trendDays;
+  document.getElementById('trends-loading').classList.remove('hidden');
+  document.getElementById('trends-charts').classList.add('hidden');
+
+  fetch(`/api/history?days=${days}`)
+    .then(r => r.json())
+    .then(data => renderCharts(data))
+    .catch(() => {
+      document.getElementById('trends-loading').textContent = 'Trends unavailable offline.';
+    });
+}
+
+function fmtDateLabel(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function makeChart(id, type, labels, values, color, unit, extra) {
+  if (activeCharts[id]) { activeCharts[id].destroy(); }
+  const ctx = document.getElementById(id);
+  if (!ctx) return;
+
+  const isBar = type === 'bar';
+  activeCharts[id] = new Chart(ctx, {
+    type,
+    data: {
+      labels,
+      datasets: [{
+        data: values,
+        borderColor: color,
+        backgroundColor: isBar ? color + '99' : color + '18',
+        fill: !isBar,
+        tension: 0.35,
+        pointRadius: isBar ? 0 : 3,
+        pointHoverRadius: isBar ? 0 : 6,
+        pointBackgroundColor: extra?.pointColors || color,
+        borderWidth: isBar ? 0 : 2,
+        borderRadius: isBar ? 4 : 0,
+        spanGaps: true,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: { label: c => `${c.raw ?? '—'} ${unit}` }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: '#1e1e1e' },
+          ticks: { color: '#555', font: { size: 10 }, maxRotation: 0, maxTicksLimit: 7 }
+        },
+        y: {
+          grid: { color: '#1e1e1e' },
+          ticks: { color: '#555', font: { size: 10 } },
+          beginAtZero: isBar,
+        }
+      }
+    }
+  });
+}
+
+function renderCharts(data) {
+  document.getElementById('trends-loading').classList.add('hidden');
+  document.getElementById('trends-charts').classList.remove('hidden');
+
+  const labels = data.map(d => fmtDateLabel(d.date));
+
+  // Recovery — line with green/yellow/red points
+  makeChart('chart-recovery', 'line', labels,
+    data.map(d => d.recovery_score ?? null),
+    '#3b82f6', '%', {
+      pointColors: data.map(d => {
+        const s = d.recovery_score;
+        if (!s) return '#555';
+        return s >= 67 ? '#22c55e' : s >= 34 ? '#eab308' : '#ef4444';
+      })
+    }
+  );
+
+  // HRV
+  makeChart('chart-hrv', 'line', labels,
+    data.map(d => d.hrv ? +d.hrv.toFixed(1) : null),
+    '#a855f7', 'ms'
+  );
+
+  // Sleep hours — bar
+  makeChart('chart-sleep', 'bar', labels,
+    data.map(d => d.sleep_hours ?? null),
+    '#6366f1', 'hrs'
+  );
+
+  // RHR
+  makeChart('chart-rhr', 'line', labels,
+    data.map(d => d.rhr ?? null),
+    '#ef4444', 'bpm'
+  );
+
+  // Steps — bar
+  makeChart('chart-steps', 'bar', labels,
+    data.map(d => d.steps ?? null),
+    '#22c55e', 'steps'
+  );
 }
 
 // --- Date pagination ---
@@ -122,6 +259,7 @@ function renderDashboard(data) {
   document.getElementById('dashboard-loading').classList.add('hidden');
   document.getElementById('dashboard-content').classList.remove('hidden');
   loadBrief();
+  loadTrends();
 
   // Date
   if (data.date) {
@@ -498,7 +636,46 @@ function sendMessage() {
   });
 }
 
-// Tooltips (click-based ⓘ icons)
+// --- Profile ---
+
+const PROFILE_FIELDS = ['name','age','sex','height','weight','goals','conditions','medications','supplements','notes'];
+
+function loadProfile() {
+  fetch('/api/profile')
+    .then(r => r.json())
+    .then(data => {
+      PROFILE_FIELDS.forEach(key => {
+        const el = document.getElementById('p-' + key);
+        if (el && data[key] != null) el.value = data[key];
+      });
+    });
+}
+
+function saveProfile() {
+  const data = {};
+  PROFILE_FIELDS.forEach(key => {
+    const el = document.getElementById('p-' + key);
+    if (el) data[key] = el.value.trim();
+  });
+
+  const btn = document.getElementById('profile-save-btn');
+  const saved = document.getElementById('profile-saved');
+  btn.disabled = true;
+
+  fetch('/api/profile', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+    .then(r => r.json())
+    .then(() => {
+      saved.classList.remove('hidden');
+      setTimeout(() => { saved.classList.add('hidden'); btn.disabled = false; }, 2000);
+    })
+    .catch(() => { btn.disabled = false; });
+}
+
+// --- Tooltips (click-based ⓘ icons)
 (function () {
   const tip = document.createElement('div');
   tip.className = 'tooltip';
@@ -562,6 +739,8 @@ function sendMessage() {
 
 // Auto-resize textarea + init
 document.addEventListener('DOMContentLoaded', () => {
+  updateOnlineStatus();
+
   const textarea = document.getElementById('chat-input');
   if (textarea) {
     textarea.addEventListener('input', function () {

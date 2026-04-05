@@ -220,6 +220,58 @@ main { flex: 1; overflow: hidden; position: relative; }
 .nav-icon { font-size: 20px; line-height: 1; }
 .nav-label { font-size: 10px; font-weight: 500; }
 
+/* Offline banner */
+.offline-banner {
+  background: rgba(234,179,8,0.1); color: var(--yellow);
+  text-align: center; font-size: 13px; font-weight: 500;
+  padding: 8px 16px; border-bottom: 1px solid rgba(234,179,8,0.2);
+  flex-shrink: 0;
+}
+
+/* Trends */
+.trends-section { margin-top: 4px; padding-bottom: 4px; }
+.trends-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 14px; padding: 0 2px;
+}
+.trends-title { font-size: 17px; font-weight: 600; }
+.trends-toggle { display: flex; gap: 6px; }
+.trend-btn {
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--muted); border-radius: 8px; padding: 6px 14px;
+  font-size: 13px; font-weight: 500; cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.trend-btn.active { background: var(--blue); border-color: var(--blue); color: #fff; }
+.trends-loading { color: var(--muted); font-size: 13px; padding: 8px 2px; }
+.chart-card { padding: 14px 14px 8px; }
+.chart-wrap { height: 150px; position: relative; }
+
+/* Profile tab */
+.profile-container { display: flex; flex-direction: column; gap: 16px; }
+.profile-fields { display: flex; flex-direction: column; gap: 14px; }
+.profile-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.profile-field { display: flex; flex-direction: column; gap: 5px; }
+.profile-label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; }
+.profile-input {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 11px 13px; color: var(--text);
+  font-size: 15px; font-family: inherit; outline: none;
+  transition: border-color 0.15s; width: 100%;
+}
+.profile-input:focus { border-color: var(--blue); }
+select.profile-input { appearance: none; -webkit-appearance: none; cursor: pointer; }
+.profile-textarea { resize: none; min-height: 80px; line-height: 1.5; }
+.profile-save-btn {
+  width: 100%; padding: 14px; background: var(--blue); color: #fff;
+  border: none; border-radius: 12px; font-size: 16px; font-weight: 600;
+  cursor: pointer; transition: opacity 0.2s;
+}
+.profile-save-btn:active { opacity: 0.8; }
+.profile-save-btn:disabled { opacity: 0.5; cursor: default; }
+.profile-saved { text-align: center; color: var(--green); font-size: 14px; font-weight: 600; padding: 8px; }
+.profile-privacy { text-align: center; font-size: 12px; color: var(--muted); padding: 4px 0 8px; }
+
 /* Morning brief card */
 .brief-card {
   background: linear-gradient(135deg, #111827 0%, var(--surface) 100%);

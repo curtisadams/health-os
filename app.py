@@ -16,7 +16,51 @@ app = Flask(__name__)
 client = anthropic.Anthropic()
 
 SUMMARY_FILE = "data/daily_summary.json"
+PROFILE_FILE = "data/profile.json"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
+def load_profile_context():
+    """Return a formatted string describing the user, or empty string if no profile."""
+    try:
+        with open(os.path.join(BASE_DIR, PROFILE_FILE)) as f:
+            p = json.load(f)
+    except FileNotFoundError:
+        return ""
+    if not p:
+        return ""
+    lines = ["\nAbout the user:"]
+    for key, label in [
+        ("name", "Name"), ("age", "Age"), ("sex", "Biological sex"),
+        ("height", "Height"), ("weight", "Weight"),
+        ("goals", "Health goals"), ("conditions", "Medical conditions"),
+        ("medications", "Medications"), ("supplements", "Supplements"),
+        ("notes", "Additional context"),
+    ]:
+        val = p.get(key, "").strip() if isinstance(p.get(key), str) else str(p.get(key, ""))
+        if val and val not in ("", "None", "null"):
+            lines.append(f"- {label}: {val}")
+    return "\n".join(lines) if len(lines) > 1 else ""
+
+
+@app.route("/api/profile", methods=["GET"])
+def profile_get():
+    path = os.path.join(BASE_DIR, PROFILE_FILE)
+    try:
+        with open(path) as f:
+            return jsonify(json.load(f))
+    except FileNotFoundError:
+        return jsonify({})
+
+
+@app.route("/api/profile", methods=["POST"])
+def profile_save():
+    data = request.json
+    path = os.path.join(BASE_DIR, PROFILE_FILE)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w") as f:
+        json.dump(data, f, indent=2)
+    return jsonify({"ok": True})
 
 
 @app.route("/")
@@ -108,7 +152,10 @@ def chat():
             if labs_sections:
                 labs_context = "\n\nLab results (all uploads, newest first):\n" + "\n---\n".join(labs_sections)
 
+    profile_context = load_profile_context()
+
     system_prompt = f"""You are a personal health assistant with access to the user's latest data from their WHOOP, Apple Health, Lose It, and lab results.
+{profile_context}
 
 Here is their health data for {date_str}:
 {health_context}{labs_context}
@@ -135,6 +182,43 @@ Help them understand their metrics, identify patterns, and give actionable insig
         mimetype="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+@app.route("/api/history")
+def history():
+    days = min(int(request.args.get("days", 14)), 90)
+    summaries_dir = os.path.join(BASE_DIR, "data", "summaries")
+    if not os.path.isdir(summaries_dir):
+        return jsonify([])
+    files = sorted(
+        glob_module.glob(os.path.join(summaries_dir, "????-??-??.json")),
+        reverse=True,
+    )[:days]
+    result = []
+    for f in sorted(files):  # ascending for chart display
+        try:
+            with open(f) as fp:
+                d = json.load(fp)
+            entry = {"date": d.get("date")}
+            if d.get("recovery"):
+                entry["recovery_score"] = d["recovery"].get("recovery_score")
+                entry["hrv"] = d["recovery"].get("hrv_rmssd_milli")
+                entry["rhr"] = d["recovery"].get("resting_heart_rate")
+            if d.get("sleep"):
+                hm = d["sleep"].get("total_sleep_duration")
+                if hm:
+                    entry["sleep_hours"] = round(
+                        hm.get("hours", 0) + hm.get("minutes", 0) / 60, 2
+                    )
+                entry["sleep_performance"] = d["sleep"].get("sleep_performance_percentage")
+            if d.get("strain"):
+                entry["strain"] = d["strain"].get("strain_score")
+            if d.get("activity"):
+                entry["steps"] = d["activity"].get("steps")
+            result.append(entry)
+        except Exception:
+            pass
+    return jsonify(result)
 
 
 @app.route("/api/brief")
@@ -166,7 +250,10 @@ def brief():
             except Exception:
                 pass
 
+    profile_context = load_profile_context()
+
     prompt = f"""Based on this health data, write a 2-3 sentence morning brief. Lead with the most important insight — recovery, sleep quality, or a standout metric. Be specific about the numbers. End with one concrete recommendation for today. No greeting, no sign-off.
+{profile_context}
 
 {health_context}{labs_context}"""
 

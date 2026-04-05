@@ -15,6 +15,8 @@
 <body>
   <div id="app">
 
+    <div id="offline-banner" class="offline-banner hidden">Offline — showing last synced data</div>
+
     <header>
       <span class="header-title">Health OS</span>
       <div class="date-nav">
@@ -116,6 +118,40 @@
             </div>
           </div>
 
+          <!-- TRENDS SECTION -->
+          <div class="trends-section">
+            <div class="trends-header">
+              <span class="trends-title">Trends</span>
+              <div class="trends-toggle">
+                <button id="trend-14" class="trend-btn active" onclick="switchTrends(14, this)">14d</button>
+                <button id="trend-30" class="trend-btn" onclick="switchTrends(30, this)">30d</button>
+              </div>
+            </div>
+            <div id="trends-loading" class="trends-loading">Loading...</div>
+            <div id="trends-charts" class="hidden">
+              <div class="card chart-card">
+                <div class="card-header">Recovery Score</div>
+                <div class="chart-wrap"><canvas id="chart-recovery"></canvas></div>
+              </div>
+              <div class="card chart-card">
+                <div class="card-header">HRV <span class="card-source">ms</span></div>
+                <div class="chart-wrap"><canvas id="chart-hrv"></canvas></div>
+              </div>
+              <div class="card chart-card">
+                <div class="card-header">Sleep <span class="card-source">hours</span></div>
+                <div class="chart-wrap"><canvas id="chart-sleep"></canvas></div>
+              </div>
+              <div class="card chart-card">
+                <div class="card-header">Resting Heart Rate <span class="card-source">bpm</span></div>
+                <div class="chart-wrap"><canvas id="chart-rhr"></canvas></div>
+              </div>
+              <div class="card chart-card">
+                <div class="card-header">Steps</div>
+                <div class="chart-wrap"><canvas id="chart-steps"></canvas></div>
+              </div>
+            </div>
+          </div>
+
         </div>
       </section>
 
@@ -171,6 +207,84 @@
         </div>
       </section>
 
+      <!-- PROFILE TAB -->
+      <section id="tab-profile" class="tab-content hidden">
+        <div class="profile-container">
+
+          <div class="card">
+            <div class="card-header">About You</div>
+            <div class="profile-fields">
+              <div class="profile-field">
+                <label class="profile-label" for="p-name">Name</label>
+                <input class="profile-input" id="p-name" type="text" placeholder="Your name">
+              </div>
+              <div class="profile-row">
+                <div class="profile-field">
+                  <label class="profile-label" for="p-age">Age</label>
+                  <input class="profile-input" id="p-age" type="number" placeholder="e.g. 35" min="1" max="120">
+                </div>
+                <div class="profile-field">
+                  <label class="profile-label" for="p-sex">Biological Sex</label>
+                  <select class="profile-input" id="p-sex">
+                    <option value="">Select</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+              </div>
+              <div class="profile-row">
+                <div class="profile-field">
+                  <label class="profile-label" for="p-height">Height</label>
+                  <input class="profile-input" id="p-height" type="text" placeholder='e.g. 5&apos;11"'>
+                </div>
+                <div class="profile-field">
+                  <label class="profile-label" for="p-weight">Weight</label>
+                  <input class="profile-input" id="p-weight" type="text" placeholder="e.g. 180 lbs">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">Goals</div>
+            <div class="profile-fields">
+              <div class="profile-field">
+                <label class="profile-label" for="p-goals">Health &amp; Longevity Goals</label>
+                <textarea class="profile-input profile-textarea" id="p-goals" placeholder="e.g. Improve cardiovascular fitness, build muscle, optimize longevity, lose 10 lbs"></textarea>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">Health Context</div>
+            <div class="profile-fields">
+              <div class="profile-field">
+                <label class="profile-label" for="p-conditions">Medical Conditions</label>
+                <textarea class="profile-input profile-textarea" id="p-conditions" placeholder="e.g. pre-diabetic, hypertension (leave blank if none)"></textarea>
+              </div>
+              <div class="profile-field">
+                <label class="profile-label" for="p-medications">Medications</label>
+                <textarea class="profile-input profile-textarea" id="p-medications" placeholder="e.g. metformin 500mg daily (leave blank if none)"></textarea>
+              </div>
+              <div class="profile-field">
+                <label class="profile-label" for="p-supplements">Supplements</label>
+                <textarea class="profile-input profile-textarea" id="p-supplements" placeholder="e.g. Vitamin D 5000 IU, Omega-3, Magnesium glycinate"></textarea>
+              </div>
+              <div class="profile-field">
+                <label class="profile-label" for="p-notes">Anything Else</label>
+                <textarea class="profile-input profile-textarea" id="p-notes" placeholder="Any other context you want Claude to know about you"></textarea>
+              </div>
+            </div>
+          </div>
+
+          <button class="profile-save-btn" id="profile-save-btn" onclick="saveProfile()">Save Profile</button>
+          <div id="profile-saved" class="profile-saved hidden">✓ Saved</div>
+          <p class="profile-privacy">Your profile is stored only on this device and never synced to GitHub.</p>
+
+        </div>
+      </section>
+
     </main>
 
     <!-- Bottom navigation -->
@@ -191,10 +305,15 @@
         <span class="nav-icon">💬</span>
         <span class="nav-label">Chat</span>
       </button>
+      <button class="nav-btn" data-tab="profile" onclick="switchTab('profile', this)">
+        <span class="nav-icon">👤</span>
+        <span class="nav-label">Profile</span>
+      </button>
     </nav>
 
   </div>
 
+  <script src="/static/chart.min.js"></script>
   <script src="/static/app.js"></script>
   <script>
     if ('serviceWorker' in navigator) {
