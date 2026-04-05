@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Health OS">
+  <meta name="theme-color" content="#0f0f0f">
+  <link rel="manifest" href="/static/manifest.json">
+  <link rel="apple-touch-icon" href="/static/icon-192.png">
+  <link rel="stylesheet" href="/static/styles.css">
+  <title>Health OS</title>
+</head>
+<body>
+  <div id="app">
+
+    <header>
+      <span class="header-title">Health OS</span>
+      <span id="header-date" class="header-date"></span>
+    </header>
+
+    <main>
+
+      <!-- DASHBOARD TAB -->
+      <section id="tab-dashboard" class="tab-content active">
+        <div id="dashboard-loading" class="loading-state">Loading data...</div>
+        <div id="dashboard-error" class="error-state hidden"></div>
+        <div id="dashboard-content" class="hidden">
+
+          <div class="card recovery-card">
+            <div class="card-header">Recovery</div>
+            <div class="recovery-score-row">
+              <span id="d-recovery-score" class="recovery-score">--</span>
+              <span class="recovery-label">/ 100</span>
+            </div>
+            <div class="metric-grid">
+              <div class="metric"><span class="metric-label">HRV</span><span id="d-hrv" class="metric-value">--</span><span class="metric-unit">ms</span></div>
+              <div class="metric"><span class="metric-label">RHR</span><span id="d-rhr" class="metric-value">--</span><span class="metric-unit">bpm</span></div>
+              <div class="metric"><span class="metric-label">SpO2</span><span id="d-spo2" class="metric-value">--</span><span class="metric-unit">%</span></div>
+              <div class="metric"><span class="metric-label">Skin Temp</span><span id="d-temp" class="metric-value">--</span><span class="metric-unit">°C</span></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">Sleep</div>
+            <div class="sleep-duration-row">
+              <span id="d-sleep-duration" class="sleep-duration">--</span>
+              <div class="sleep-scores">
+                <span id="d-sleep-perf" class="badge">-- perf</span>
+                <span id="d-sleep-eff" class="badge">-- eff</span>
+              </div>
+            </div>
+            <div class="sleep-stages">
+              <div class="stage"><span class="stage-dot rem"></span><span class="stage-label">REM</span><span id="d-rem" class="stage-value">--</span></div>
+              <div class="stage"><span class="stage-dot deep"></span><span class="stage-label">Deep</span><span id="d-deep" class="stage-value">--</span></div>
+              <div class="stage"><span class="stage-dot light"></span><span class="stage-label">Light</span><span id="d-light" class="stage-value">--</span></div>
+            </div>
+            <div class="metric-row-small">
+              <span class="metric-label">Disturbances</span><span id="d-disturbances" class="metric-value">--</span>
+              <span class="metric-label ml">Resp Rate</span><span id="d-resp" class="metric-value">--</span><span class="metric-unit">br/min</span>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">Strain</div>
+            <div class="strain-row">
+              <span id="d-strain" class="strain-score">--</span>
+              <span class="strain-label">/ 21</span>
+              <span id="d-strain-calories" class="strain-calories">-- kcal</span>
+            </div>
+            <div class="metric-grid">
+              <div class="metric"><span class="metric-label">Avg HR</span><span id="d-avg-hr" class="metric-value">--</span><span class="metric-unit">bpm</span></div>
+              <div class="metric"><span class="metric-label">Max HR</span><span id="d-max-hr" class="metric-value">--</span><span class="metric-unit">bpm</span></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">Activity <span class="card-source">Apple Health</span></div>
+            <div class="activity-grid">
+              <div class="activity-stat"><span id="d-steps" class="activity-value">--</span><span class="activity-label">steps</span></div>
+              <div class="activity-stat"><span id="d-distance" class="activity-value">--</span><span class="activity-label">miles</span></div>
+              <div class="activity-stat"><span id="d-active-cal" class="activity-value">--</span><span class="activity-label">active kcal</span></div>
+              <div class="activity-stat"><span id="d-exercise" class="activity-value">--</span><span class="activity-label">exercise min</span></div>
+              <div class="activity-stat"><span id="d-stand" class="activity-value">--</span><span class="activity-label">stand hrs</span></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">Nutrition <span class="card-source">Lose It</span></div>
+            <div class="nutrition-calories-row">
+              <div class="nutrition-cal-group">
+                <span id="d-cal-in" class="nutrition-cal">--</span>
+                <span class="nutrition-cal-label">calories in</span>
+              </div>
+              <div class="nutrition-arrow">→</div>
+              <div class="nutrition-cal-group">
+                <span id="d-net-cal" class="nutrition-cal net">--</span>
+                <span class="nutrition-cal-label">net</span>
+              </div>
+            </div>
+            <div class="macro-row">
+              <div class="macro"><span id="d-carbs" class="macro-value">--</span><span class="macro-label">carbs g</span></div>
+              <div class="macro"><span id="d-protein" class="macro-value">--</span><span class="macro-label">protein g</span></div>
+              <div class="macro"><span id="d-fat" class="macro-value">--</span><span class="macro-label">fat g</span></div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- SYNC TAB -->
+      <section id="tab-sync" class="tab-content hidden">
+        <div class="sync-container">
+          <button id="sync-btn" class="sync-button" onclick="startSync()">
+            <span id="sync-btn-text">Sync Now</span>
+          </button>
+          <p class="sync-hint">Fetches latest data from WHOOP and Apple Health</p>
+          <div id="sync-log" class="sync-log hidden"></div>
+        </div>
+      </section>
+
+      <!-- CHAT TAB -->
+      <section id="tab-chat" class="tab-content hidden">
+        <div id="chat-messages" class="chat-messages">
+          <div class="chat-welcome">
+            <div class="chat-welcome-icon">💬</div>
+            <p>Ask me about your health data, trends, or anything on your mind.</p>
+          </div>
+        </div>
+        <div class="chat-input-row">
+          <textarea id="chat-input" class="chat-input" placeholder="Ask about your health..." rows="1" onkeydown="handleChatKey(event)"></textarea>
+          <button id="chat-send" class="chat-send-btn" onclick="sendMessage()">↑</button>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Bottom navigation -->
+    <nav class="bottom-nav">
+      <button class="nav-btn active" data-tab="dashboard" onclick="switchTab('dashboard', this)">
+        <span class="nav-icon">📊</span>
+        <span class="nav-label">Dashboard</span>
+      </button>
+      <button class="nav-btn" data-tab="sync" onclick="switchTab('sync', this)">
+        <span class="nav-icon">🔄</span>
+        <span class="nav-label">Sync</span>
+      </button>
+      <button class="nav-btn" data-tab="chat" onclick="switchTab('chat', this)">
+        <span class="nav-icon">💬</span>
+        <span class="nav-label">Chat</span>
+      </button>
+    </nav>
+
+  </div>
+
+  <script src="/static/app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/static/sw.js');
+    }
+  </script>
+</body>
+</html>

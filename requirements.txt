@@ -1,0 +1,6 @@
+anthropic
+flask
+gunicorn
+pillow
+python-dotenv
+requests
