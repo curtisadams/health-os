@@ -9,6 +9,7 @@ function switchTab(name, btn) {
   tab.classList.remove('hidden');
   tab.classList.add('active');
   if (btn) btn.classList.add('active');
+  if (name === 'labs') loadLabsHistory();
 }
 
 // --- Dashboard ---
@@ -36,8 +37,68 @@ function set(id, val) {
   if (el) el.textContent = val;
 }
 
-function loadDashboard() {
-  fetch('/api/summary')
+// --- Morning Brief ---
+
+function loadBrief(refresh = false) {
+  const card = document.getElementById('brief-card');
+  const text = document.getElementById('brief-text');
+  if (!card || !text) return;
+
+  if (refresh) {
+    text.textContent = 'Regenerating...';
+    card.classList.remove('hidden');
+  }
+
+  fetch(refresh ? '/api/brief?refresh=1' : '/api/brief')
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) { card.classList.add('hidden'); return; }
+      text.textContent = data.brief;
+      card.classList.remove('hidden');
+    })
+    .catch(() => card.classList.add('hidden'));
+}
+
+// --- Date pagination ---
+
+let availableDates = [];
+let currentDateIndex = 0;
+
+function loadDates() {
+  fetch('/api/dates')
+    .then(r => r.json())
+    .then(dates => {
+      availableDates = dates;
+      currentDateIndex = 0;
+      updateDateNav();
+      loadDashboard(dates.length > 0 ? dates[0] : null);
+    })
+    .catch(() => loadDashboard(null));
+}
+
+function updateDateNav() {
+  const prev = document.getElementById('date-prev');
+  const next = document.getElementById('date-next');
+  if (prev) prev.disabled = currentDateIndex >= availableDates.length - 1;
+  if (next) next.disabled = currentDateIndex <= 0;
+}
+
+function changeDate(delta) {
+  const newIndex = currentDateIndex + delta;
+  if (newIndex < 0 || newIndex >= availableDates.length) return;
+  currentDateIndex = newIndex;
+  updateDateNav();
+  loadDashboard(availableDates[currentDateIndex]);
+}
+
+function loadDashboard(date) {
+  const url = date ? `/api/summary?date=${encodeURIComponent(date)}` : '/api/summary';
+
+  document.getElementById('dashboard-loading').classList.remove('hidden');
+  document.getElementById('dashboard-content').classList.add('hidden');
+  document.getElementById('dashboard-error').classList.add('hidden');
+
+  fetch(url)
     .then(r => r.json())
     .then(data => {
       if (data.error) {
@@ -60,6 +121,7 @@ function loadDashboard() {
 function renderDashboard(data) {
   document.getElementById('dashboard-loading').classList.add('hidden');
   document.getElementById('dashboard-content').classList.remove('hidden');
+  loadBrief();
 
   // Date
   if (data.date) {
@@ -130,6 +192,122 @@ function renderDashboard(data) {
   }
 }
 
+// --- Labs ---
+
+let selectedLabFile = null;
+
+function handleFileSelect(e) {
+  selectedLabFile = e.target.files[0];
+  if (!selectedLabFile) return;
+  document.getElementById('upload-filename').textContent = selectedLabFile.name;
+  document.getElementById('upload-area').classList.add('has-file');
+  document.getElementById('process-btn').classList.remove('hidden');
+  document.getElementById('labs-upload-error').classList.add('hidden');
+}
+
+function processLabs() {
+  if (!selectedLabFile) return;
+  document.getElementById('process-btn').classList.add('hidden');
+  document.getElementById('labs-processing').classList.remove('hidden');
+  document.getElementById('labs-upload-error').classList.add('hidden');
+
+  const form = new FormData();
+  form.append('pdf', selectedLabFile);
+
+  fetch('/api/labs/upload', { method: 'POST', body: form })
+    .then(r => r.json())
+    .then(data => {
+      document.getElementById('labs-processing').classList.add('hidden');
+      if (data.error) {
+        const err = document.getElementById('labs-upload-error');
+        err.textContent = data.error;
+        err.classList.remove('hidden');
+        document.getElementById('process-btn').classList.remove('hidden');
+        return;
+      }
+      // Reset upload UI
+      selectedLabFile = null;
+      document.getElementById('lab-file-input').value = '';
+      document.getElementById('upload-filename').textContent = '';
+      document.getElementById('upload-area').classList.remove('has-file');
+      // Render and refresh history
+      renderLabResult(data);
+      loadLabsHistory();
+    })
+    .catch(() => {
+      document.getElementById('labs-processing').classList.add('hidden');
+      const err = document.getElementById('labs-upload-error');
+      err.textContent = 'Upload failed. Is the server running?';
+      err.classList.remove('hidden');
+      document.getElementById('process-btn').classList.remove('hidden');
+    });
+}
+
+function loadLabsHistory() {
+  fetch('/api/labs')
+    .then(r => r.json())
+    .then(list => {
+      const row = document.getElementById('labs-history-row');
+      const sel = document.getElementById('labs-date-select');
+      if (!list.length) { row.classList.add('hidden'); return; }
+      row.classList.remove('hidden');
+      sel.innerHTML = list.map(l =>
+        `<option value="${l.date}">${l.date} (${l.count} markers)</option>`
+      ).join('');
+      // Load most recent if results not already showing
+      if (!document.getElementById('labs-results').hasChildNodes()) {
+        loadLabResult(list[0].date);
+      }
+    });
+}
+
+function loadLabResult(date) {
+  fetch(`/api/labs/${date}`)
+    .then(r => r.json())
+    .then(data => renderLabResult(data));
+}
+
+function renderLabResult(data) {
+  const container = document.getElementById('labs-results');
+  container.innerHTML = '';
+
+  const biomarkers = data.biomarkers || [];
+  if (!biomarkers.length) {
+    container.innerHTML = '<p class="labs-empty">No biomarkers found.</p>';
+    return;
+  }
+
+  // Group by category
+  const groups = {};
+  biomarkers.forEach(b => {
+    const cat = b.category || 'Other';
+    if (!groups[cat]) groups[cat] = [];
+    groups[cat].push(b);
+  });
+
+  Object.entries(groups).forEach(([category, markers]) => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `<div class="card-header">${category}</div>`;
+
+    const table = document.createElement('div');
+    table.className = 'labs-table';
+    markers.forEach(b => {
+      const row = document.createElement('div');
+      row.className = `labs-row status-${(b.status || 'normal').toLowerCase()}`;
+      row.innerHTML = `
+        <span class="labs-name">${b.name}</span>
+        <span class="labs-value">${b.value ?? '—'} <span class="labs-unit">${b.unit || ''}</span></span>
+        <span class="labs-range">${b.reference_range || ''}</span>
+        <span class="labs-status">${b.status || ''}</span>
+      `;
+      table.appendChild(row);
+    });
+    card.appendChild(table);
+    container.appendChild(card);
+  });
+}
+
 // --- Sync ---
 
 let syncing = false;
@@ -196,12 +374,25 @@ function startSync() {
 
 let chatHistory = [];
 let chatStreaming = false;
+let chatAbortController = null;
 
 function handleChatKey(e) {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
+    handleSendBtn();
+  }
+}
+
+function handleSendBtn() {
+  if (chatStreaming) {
+    stopChat();
+  } else {
     sendMessage();
   }
+}
+
+function stopChat() {
+  if (chatAbortController) chatAbortController.abort();
 }
 
 function appendMessage(role, text, streaming = false) {
@@ -218,6 +409,19 @@ function appendMessage(role, text, streaming = false) {
   return div;
 }
 
+function setChatSendBtn(mode) {
+  const btn = document.getElementById('chat-send');
+  if (mode === 'stop') {
+    btn.textContent = '■';
+    btn.classList.add('stop');
+    btn.disabled = false;
+  } else {
+    btn.textContent = '↑';
+    btn.classList.remove('stop');
+    btn.disabled = false;
+  }
+}
+
 function sendMessage() {
   if (chatStreaming) return;
   const input = document.getElementById('chat-input');
@@ -226,25 +430,23 @@ function sendMessage() {
 
   input.value = '';
   input.style.height = 'auto';
-  document.getElementById('chat-send').disabled = true;
 
   chatHistory.push({ role: 'user', content: text });
   appendMessage('user', text);
 
   chatStreaming = true;
-  const assistantEl = appendMessage('assistant', '', true);
+  setChatSendBtn('stop');
 
+  const assistantEl = appendMessage('assistant', '', true);
   let buffer = '';
 
-  const es = new EventSource('/api/chat?_t=' + Date.now());
-
-  // We need POST not GET for SSE — use fetch + ReadableStream instead
-  es.close();
+  chatAbortController = new AbortController();
 
   fetch('/api/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ messages: chatHistory }),
+    signal: chatAbortController.signal,
   }).then(res => {
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
@@ -264,7 +466,8 @@ function sendMessage() {
               assistantEl.classList.remove('streaming');
               chatHistory.push({ role: 'assistant', content: buffer });
               chatStreaming = false;
-              document.getElementById('chat-send').disabled = false;
+              chatAbortController = null;
+              setChatSendBtn('send');
               return;
             }
             buffer += msg;
@@ -273,18 +476,91 @@ function sendMessage() {
           } catch {}
         }
         read();
+      }).catch(err => {
+        if (err.name === 'AbortError') {
+          assistantEl.classList.remove('streaming');
+          if (buffer) chatHistory.push({ role: 'assistant', content: buffer });
+        }
+        chatStreaming = false;
+        chatAbortController = null;
+        setChatSendBtn('send');
       });
     }
     read();
-  }).catch(() => {
-    assistantEl.textContent = 'Error connecting to server.';
+  }).catch(err => {
+    if (err.name !== 'AbortError') {
+      assistantEl.textContent = 'Error connecting to server.';
+    }
     assistantEl.classList.remove('streaming');
     chatStreaming = false;
-    document.getElementById('chat-send').disabled = false;
+    chatAbortController = null;
+    setChatSendBtn('send');
   });
 }
 
-// Auto-resize textarea
+// Tooltips (click-based ⓘ icons)
+(function () {
+  const tip = document.createElement('div');
+  tip.className = 'tooltip';
+
+  let activeBtn = null;
+
+  function position(btn) {
+    const r = btn.getBoundingClientRect();
+    const margin = 8;
+    tip.style.width = '260px';
+    const th = tip.offsetHeight || 70;
+    let left = r.left + r.width / 2 - 130;
+    let top = r.top - th - margin;
+    if (top < margin) top = r.bottom + margin;
+    left = Math.max(margin, Math.min(left, window.innerWidth - 260 - margin));
+    tip.style.left = left + 'px';
+    tip.style.top = top + 'px';
+  }
+
+  function showTip(text, btn) {
+    tip.textContent = text;
+    tip.classList.add('visible');
+    activeBtn = btn;
+    // defer position so offsetHeight is accurate
+    requestAnimationFrame(() => position(btn));
+  }
+
+  function hideTip() {
+    tip.classList.remove('visible');
+    activeBtn = null;
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('app').appendChild(tip);
+
+    // Inject ⓘ button into every [data-tooltip] element
+    document.querySelectorAll('[data-tooltip]').forEach(el => {
+      const btn = document.createElement('button');
+      btn.className = 'info-btn';
+      btn.setAttribute('aria-label', 'More info');
+      btn.textContent = 'ⓘ';
+      el.appendChild(btn);
+    });
+  });
+
+  document.addEventListener('click', e => {
+    const btn = e.target.closest('.info-btn');
+    if (btn) {
+      e.stopPropagation();
+      if (btn === activeBtn) {
+        hideTip();
+      } else {
+        const text = btn.closest('[data-tooltip]').dataset.tooltip;
+        showTip(text, btn);
+      }
+      return;
+    }
+    hideTip();
+  });
+})();
+
+// Auto-resize textarea + init
 document.addEventListener('DOMContentLoaded', () => {
   const textarea = document.getElementById('chat-input');
   if (textarea) {
@@ -293,5 +569,5 @@ document.addEventListener('DOMContentLoaded', () => {
       this.style.height = Math.min(this.scrollHeight, 120) + 'px';
     });
   }
-  loadDashboard();
+  loadDates();
 });

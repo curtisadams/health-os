@@ -1,4 +1,4 @@
-const CACHE = 'health-os-v1';
+const CACHE = 'health-os-v2';
 const STATIC = ['/', '/static/styles.css', '/static/app.js', '/static/manifest.json'];
 
 self.addEventListener('install', e => {

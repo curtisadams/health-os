@@ -17,7 +17,11 @@
 
     <header>
       <span class="header-title">Health OS</span>
-      <span id="header-date" class="header-date"></span>
+      <div class="date-nav">
+        <button id="date-prev" class="date-nav-btn" onclick="changeDate(1)" disabled>‹</button>
+        <span id="header-date" class="header-date">—</span>
+        <button id="date-next" class="date-nav-btn" onclick="changeDate(-1)" disabled>›</button>
+      </div>
     </header>
 
     <main>
@@ -28,81 +32,87 @@
         <div id="dashboard-error" class="error-state hidden"></div>
         <div id="dashboard-content" class="hidden">
 
+          <div class="card brief-card hidden" id="brief-card">
+            <div class="brief-label">✦ Morning Brief</div>
+            <div id="brief-text" class="brief-text">Generating your brief...</div>
+            <button class="brief-refresh" onclick="loadBrief(true)" title="Refresh">↺</button>
+          </div>
+
           <div class="card recovery-card">
             <div class="card-header">Recovery</div>
-            <div class="recovery-score-row">
+            <div class="recovery-score-row" data-tooltip="Your overall readiness score (0–100). Green (67–100) = ready to perform. Yellow (34–66) = moderate. Red (0–33) = your body needs rest.">
               <span id="d-recovery-score" class="recovery-score">--</span>
               <span class="recovery-label">/ 100</span>
             </div>
             <div class="metric-grid">
-              <div class="metric"><span class="metric-label">HRV</span><span id="d-hrv" class="metric-value">--</span><span class="metric-unit">ms</span></div>
-              <div class="metric"><span class="metric-label">RHR</span><span id="d-rhr" class="metric-value">--</span><span class="metric-unit">bpm</span></div>
-              <div class="metric"><span class="metric-label">SpO2</span><span id="d-spo2" class="metric-value">--</span><span class="metric-unit">%</span></div>
-              <div class="metric"><span class="metric-label">Skin Temp</span><span id="d-temp" class="metric-value">--</span><span class="metric-unit">°C</span></div>
+              <div class="metric" data-tooltip="Heart Rate Variability — the variation in time between heartbeats, in milliseconds. Higher HRV indicates a well-recovered nervous system and better ability to handle stress."><span class="metric-label">HRV</span><span id="d-hrv" class="metric-value">--</span><span class="metric-unit">ms</span></div>
+              <div class="metric" data-tooltip="Resting Heart Rate — your heart rate while fully at rest. Lower RHR generally means better cardiovascular fitness and recovery."><span class="metric-label">RHR</span><span id="d-rhr" class="metric-value">--</span><span class="metric-unit">bpm</span></div>
+              <div class="metric" data-tooltip="Blood oxygen saturation — the percentage of hemoglobin carrying oxygen. A healthy range is 95–100%. Values below 95% can indicate disrupted breathing during sleep."><span class="metric-label">SpO2</span><span id="d-spo2" class="metric-value">--</span><span class="metric-unit">%</span></div>
+              <div class="metric" data-tooltip="Skin temperature in Celsius, measured during sleep. Deviations from your personal baseline can signal illness, high stress, or hormonal changes."><span class="metric-label">Skin Temp</span><span id="d-temp" class="metric-value">--</span><span class="metric-unit">°C</span></div>
             </div>
           </div>
 
           <div class="card">
             <div class="card-header">Sleep</div>
             <div class="sleep-duration-row">
-              <span id="d-sleep-duration" class="sleep-duration">--</span>
+              <span id="d-sleep-duration" class="sleep-duration" data-tooltip="Total time asleep — calculated as time in bed minus time spent awake.">--</span>
               <div class="sleep-scores">
-                <span id="d-sleep-perf" class="badge">-- perf</span>
-                <span id="d-sleep-eff" class="badge">-- eff</span>
+                <span id="d-sleep-perf" class="badge" data-tooltip="Sleep Performance — how much sleep you got compared to how much WHOOP calculated you needed, expressed as a percentage.">-- perf</span>
+                <span id="d-sleep-eff" class="badge" data-tooltip="Sleep Efficiency — the percentage of time in bed actually spent asleep. 85% or above is generally considered healthy.">-- eff</span>
               </div>
             </div>
             <div class="sleep-stages">
-              <div class="stage"><span class="stage-dot rem"></span><span class="stage-label">REM</span><span id="d-rem" class="stage-value">--</span></div>
-              <div class="stage"><span class="stage-dot deep"></span><span class="stage-label">Deep</span><span id="d-deep" class="stage-value">--</span></div>
-              <div class="stage"><span class="stage-dot light"></span><span class="stage-label">Light</span><span id="d-light" class="stage-value">--</span></div>
+              <div class="stage" data-tooltip="REM (Rapid Eye Movement) sleep — critical for memory consolidation, emotional processing, and mental recovery. Typically 20–25% of total sleep."><span class="stage-dot rem"></span><span class="stage-label">REM</span><span id="d-rem" class="stage-value">--</span></div>
+              <div class="stage" data-tooltip="Deep (slow wave) sleep — the most physically restorative stage. Promotes muscle repair, immune function, and growth hormone release. Most deep sleep occurs in the first half of the night."><span class="stage-dot deep"></span><span class="stage-label">Deep</span><span id="d-deep" class="stage-value">--</span></div>
+              <div class="stage" data-tooltip="Light sleep — a transitional stage between deep sleep and waking. Less restorative on its own but important for overall sleep architecture."><span class="stage-dot light"></span><span class="stage-label">Light</span><span id="d-light" class="stage-value">--</span></div>
             </div>
             <div class="metric-row-small">
-              <span class="metric-label">Disturbances</span><span id="d-disturbances" class="metric-value">--</span>
-              <span class="metric-label ml">Resp Rate</span><span id="d-resp" class="metric-value">--</span><span class="metric-unit">br/min</span>
+              <span class="metric-label" data-tooltip="Number of brief awakenings detected during the night. Some disturbances are normal — consistently high counts may indicate sleep disruption.">Disturbances</span><span id="d-disturbances" class="metric-value">--</span>
+              <span class="metric-label ml" data-tooltip="Average breaths per minute during sleep. Your normal baseline is typically 12–20. An elevated rate can be an early sign of illness or respiratory issues.">Resp Rate</span><span id="d-resp" class="metric-value">--</span><span class="metric-unit">br/min</span>
             </div>
           </div>
 
           <div class="card">
             <div class="card-header">Strain</div>
             <div class="strain-row">
-              <span id="d-strain" class="strain-score">--</span>
+              <span id="d-strain" class="strain-score" data-tooltip="Cardiovascular strain on a 0–21 scale based on heart rate data. Light (0–9), Moderate (10–13), Strenuous (14–17), All Out (18–21). Helps you match activity to your recovery level.">--</span>
               <span class="strain-label">/ 21</span>
-              <span id="d-strain-calories" class="strain-calories">-- kcal</span>
+              <span id="d-strain-calories" class="strain-calories" data-tooltip="Estimated total calories burned across the full day, including both active calories and resting metabolic rate.">-- kcal</span>
             </div>
             <div class="metric-grid">
-              <div class="metric"><span class="metric-label">Avg HR</span><span id="d-avg-hr" class="metric-value">--</span><span class="metric-unit">bpm</span></div>
-              <div class="metric"><span class="metric-label">Max HR</span><span id="d-max-hr" class="metric-value">--</span><span class="metric-unit">bpm</span></div>
+              <div class="metric" data-tooltip="Average heart rate across your entire waking day. Reflects overall cardiovascular demand including workouts, stress, and daily movement."><span class="metric-label">Avg HR</span><span id="d-avg-hr" class="metric-value">--</span><span class="metric-unit">bpm</span></div>
+              <div class="metric" data-tooltip="Peak heart rate recorded at any point during the day. Useful for gauging workout intensity and cardiovascular ceiling."><span class="metric-label">Max HR</span><span id="d-max-hr" class="metric-value">--</span><span class="metric-unit">bpm</span></div>
             </div>
           </div>
 
           <div class="card">
             <div class="card-header">Activity <span class="card-source">Apple Health</span></div>
             <div class="activity-grid">
-              <div class="activity-stat"><span id="d-steps" class="activity-value">--</span><span class="activity-label">steps</span></div>
-              <div class="activity-stat"><span id="d-distance" class="activity-value">--</span><span class="activity-label">miles</span></div>
-              <div class="activity-stat"><span id="d-active-cal" class="activity-value">--</span><span class="activity-label">active kcal</span></div>
-              <div class="activity-stat"><span id="d-exercise" class="activity-value">--</span><span class="activity-label">exercise min</span></div>
-              <div class="activity-stat"><span id="d-stand" class="activity-value">--</span><span class="activity-label">stand hrs</span></div>
+              <div class="activity-stat" data-tooltip="Total steps counted by your Apple Watch throughout the day."><span id="d-steps" class="activity-value">--</span><span class="activity-label">steps</span></div>
+              <div class="activity-stat" data-tooltip="Total distance walked or run, in miles."><span id="d-distance" class="activity-value">--</span><span class="activity-label">miles</span></div>
+              <div class="activity-stat" data-tooltip="Calories burned through movement above your resting metabolic rate. This fills your Apple Watch Move ring."><span id="d-active-cal" class="activity-value">--</span><span class="activity-label">active kcal</span></div>
+              <div class="activity-stat" data-tooltip="Minutes of brisk activity where your heart rate was elevated. Counts toward your Apple Watch Exercise ring. Goal is 30 min/day."><span id="d-exercise" class="activity-value">--</span><span class="activity-label">exercise min</span></div>
+              <div class="activity-stat" data-tooltip="Hours where you stood up and moved around for at least one minute. Counts toward your Apple Watch Stand ring. Goal is 12 hours/day."><span id="d-stand" class="activity-value">--</span><span class="activity-label">stand hrs</span></div>
             </div>
           </div>
 
           <div class="card">
             <div class="card-header">Nutrition <span class="card-source">Lose It</span></div>
             <div class="nutrition-calories-row">
-              <div class="nutrition-cal-group">
+              <div class="nutrition-cal-group" data-tooltip="Total calories consumed as logged in Lose It.">
                 <span id="d-cal-in" class="nutrition-cal">--</span>
                 <span class="nutrition-cal-label">calories in</span>
               </div>
               <div class="nutrition-arrow">→</div>
-              <div class="nutrition-cal-group">
+              <div class="nutrition-cal-group" data-tooltip="Net calories — calories consumed minus active and basal energy burned. Negative means a calorie deficit (burned more than eaten). Positive means a surplus.">
                 <span id="d-net-cal" class="nutrition-cal net">--</span>
                 <span class="nutrition-cal-label">net</span>
               </div>
             </div>
             <div class="macro-row">
-              <div class="macro"><span id="d-carbs" class="macro-value">--</span><span class="macro-label">carbs g</span></div>
-              <div class="macro"><span id="d-protein" class="macro-value">--</span><span class="macro-label">protein g</span></div>
-              <div class="macro"><span id="d-fat" class="macro-value">--</span><span class="macro-label">fat g</span></div>
+              <div class="macro" data-tooltip="Total carbohydrates consumed in grams. Primary fuel source for the brain and high-intensity exercise."><span id="d-carbs" class="macro-value">--</span><span class="macro-label">carbs g</span></div>
+              <div class="macro" data-tooltip="Total protein consumed in grams. Essential for muscle repair and growth. A common target is 0.7–1g per pound of body weight."><span id="d-protein" class="macro-value">--</span><span class="macro-label">protein g</span></div>
+              <div class="macro" data-tooltip="Total dietary fat consumed in grams. Important for hormone production, nutrient absorption, and sustained energy."><span id="d-fat" class="macro-value">--</span><span class="macro-label">fat g</span></div>
             </div>
           </div>
 
@@ -130,7 +140,34 @@
         </div>
         <div class="chat-input-row">
           <textarea id="chat-input" class="chat-input" placeholder="Ask about your health..." rows="1" onkeydown="handleChatKey(event)"></textarea>
-          <button id="chat-send" class="chat-send-btn" onclick="sendMessage()">↑</button>
+          <button id="chat-send" class="chat-send-btn" onclick="handleSendBtn()">↑</button>
+        </div>
+      </section>
+
+      <!-- LABS TAB -->
+      <section id="tab-labs" class="tab-content hidden">
+        <div class="labs-container">
+
+          <div class="card">
+            <div class="card-header">Upload Lab Results</div>
+            <div class="upload-area" id="upload-area" onclick="document.getElementById('lab-file-input').click()">
+              <input type="file" id="lab-file-input" accept=".pdf" style="display:none" onchange="handleFileSelect(event)">
+              <div class="upload-icon">📄</div>
+              <p class="upload-text">Tap to choose a PDF lab report</p>
+              <span id="upload-filename" class="upload-filename"></span>
+            </div>
+            <button id="process-btn" class="process-btn hidden" onclick="processLabs()">Extract Biomarkers</button>
+            <div id="labs-processing" class="labs-processing hidden">Reading your lab report with Claude...</div>
+            <div id="labs-upload-error" class="error-state hidden"></div>
+          </div>
+
+          <div id="labs-history-row" class="labs-history-row hidden">
+            <span class="labs-history-label">Past results:</span>
+            <select id="labs-date-select" class="labs-date-select" onchange="loadLabResult(this.value)"></select>
+          </div>
+
+          <div id="labs-results"></div>
+
         </div>
       </section>
 
@@ -141,6 +178,10 @@
       <button class="nav-btn active" data-tab="dashboard" onclick="switchTab('dashboard', this)">
         <span class="nav-icon">📊</span>
         <span class="nav-label">Dashboard</span>
+      </button>
+      <button class="nav-btn" data-tab="labs" onclick="switchTab('labs', this)">
+        <span class="nav-icon">🧪</span>
+        <span class="nav-label">Labs</span>
       </button>
       <button class="nav-btn" data-tab="sync" onclick="switchTab('sync', this)">
         <span class="nav-icon">🔄</span>

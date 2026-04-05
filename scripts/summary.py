@@ -1,4 +1,5 @@
 import json
+import os
 from datetime import datetime
 from dotenv import load_dotenv
 
@@ -8,6 +9,7 @@ WHOOP_SUMMARY_FILE = "data/whoop_summary.json"
 APPLE_HEALTH_FILE = "data/apple_health_daily.json"
 LOSEIT_FILE = "data/loseit_daily.json"
 OUTPUT_FILE = "data/daily_summary.json"
+SUMMARIES_DIR = "data/summaries"
 
 # Metrics from Apple Health where we want the total (cumulative)
 CUMULATIVE_METRICS = {
@@ -104,8 +106,13 @@ def build_summary():
     with open(OUTPUT_FILE, "w") as f:
         json.dump(daily_summary, f, indent=2)
 
+    os.makedirs(SUMMARIES_DIR, exist_ok=True)
+    dated_path = os.path.join(SUMMARIES_DIR, f"{date}.json")
+    with open(dated_path, "w") as f:
+        json.dump(daily_summary, f, indent=2)
+
     print_summary(daily_summary)
-    print(f"Saved summary to {OUTPUT_FILE}")
+    print(f"Saved summary to {OUTPUT_FILE} and {dated_path}")
 
     return daily_summary
 
